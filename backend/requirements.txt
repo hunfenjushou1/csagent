@@ -1,0 +1,28 @@
+# 文件处理 Agent 后端依赖
+# 安装：pip install -r requirements.txt
+# 适用 Python 3.10+（实测 3.13.14）
+
+# --- Web 服务 ---
+fastapi==0.156.8
+uvicorn[standard]==0.54.0
+# 解析 multipart/form-data，上传模板和参考文件必需
+# 缺了会报 "Form data requires python-multipart"，但代码里不会 import 它，看代码排查不出来
+python-multipart==0.0.32
+
+# --- 文档解析 / 导出 ---
+# docx 模板解析与导出写回（含表格行增删）
+python-docx==1.2.0
+# xlsx 读取（成员清单、接口协议活动表）与示例文件生成
+openpyxl==3.1.5
+# PDF 参考文件解析
+pdfplumber==0.11.10
+# pptx 参考文件解析
+python-pptx==1.0.2
+
+# --- 大模型（DeepSeek / OpenAI 兼容协议）---
+# 只用它的 HTTP 客户端，没引 openai SDK：一个 chat/completions 调用不值得多一个重依赖
+httpx==0.28.1
+
+# 说明：本项目不使用向量库、不使用 BM25、不做中文分词。
+# 证据判定只有两条确定性路径：结构化表格对齐 + 全量精确匹配，
+# 语义对齐由大模型完成，不做召回排序，因此无需 chromadb / sentence-transformers / jieba / rank-bm25 / numpy。

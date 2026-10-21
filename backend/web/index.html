@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件处理 Agent</title>
+<style>
+  :root{
+    --bg:#F7F7F5; --panel:#FFFFFF; --line:#E3E1DB; --line-soft:#EFEDE8;
+    --text:#2C2C2A; --muted:#5F5E5A; --faint:#888780;
+    --blue:#185FA5; --blue-bg:#E6F1FB; --blue-line:#B5D4F4;
+    --green:#0F6E56; --green-bg:#E1F5EE;
+    --amber:#854F0B; --amber-bg:#FAEEDA; --amber-line:#FAC775;
+    --red:#A32D2D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    font-size:14px;line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 24px 80px}
+  header{margin-bottom:24px}
+  h1{font-size:20px;font-weight:600;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 11px;
+    border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel);margin-top:10px}
+  .chip.on{color:var(--green);border-color:#A8DCC8;background:var(--green-bg)}
+  .chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:16px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .col{flex:1;min-width:260px}
+  label.field{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+  .hint{font-size:12px;color:var(--faint);margin-top:4px}
+  .drop{border:1px dashed var(--line);border-radius:10px;padding:16px;background:#FCFCFB;
+    cursor:pointer;transition:.15s}
+  .drop:hover{border-color:var(--blue-line);background:var(--blue-bg)}
+  .drop.done{border-style:solid;border-color:var(--blue-line);background:var(--blue-bg)}
+  .drop .name{font-size:13px;font-weight:500;color:var(--blue);word-break:break-all}
+  input[type=file]{display:none}
+  textarea,input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--text);resize:vertical}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--blue)}
+  button{border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:500;
+    font-family:inherit;cursor:pointer;transition:.15s}
+  .primary{background:var(--blue);color:#fff}
+  .primary:hover{background:#124B84}
+  .primary:disabled{background:#B4B2A9;cursor:not-allowed}
+  .ghost{background:#fff;color:var(--text);border:1px solid var(--line)}
+  .ghost:hover{border-color:var(--faint)}
+  .stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .stat{flex:1;min-width:120px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#FCFCFB}
+  .stat b{display:block;font-size:22px;font-weight:600;line-height:1.2}
+  .stat span{font-size:12px;color:var(--muted)}
+  .stat.ok b{color:var(--green)} .stat.wait b{color:var(--blue)} .stat.miss b{color:var(--amber)}
+  .group-title{font-size:13px;font-weight:500;color:var(--muted);margin:24px 0 10px;
+    padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+  .fld{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fff}
+  .fld-head{display:flex;align-items:flex-start;gap:10px}
+  .fld-label{font-weight:500;font-size:13.5px;flex:1;word-break:break-word}
+  .badge{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;font-weight:500}
+  .b-filled{background:var(--green-bg);color:var(--green)}
+  .b-wait{background:var(--blue-bg);color:var(--blue)}
+  .b-miss{background:var(--amber-bg);color:var(--amber)}
+  .meta{font-size:12px;color:var(--faint);margin-top:6px}
+  .basis{font-size:12.5px;color:var(--muted);margin-top:8px;
+    background:#FAFAF8;border-left:2px solid var(--line);padding:7px 10px;border-radius:0 6px 6px 0}
+  .fld.miss .basis{border-left-color:var(--amber-line);background:var(--amber-bg);color:var(--amber)}
+  .evidence{margin-top:8px;font-size:12.5px}
+  .evidence summary{cursor:pointer;color:var(--blue);font-size:12px;user-select:none}
+  .chunk{margin-top:6px;padding:8px 10px;background:#FCFCFB;border:1px solid var(--line-soft);
+    border-radius:6px;color:var(--muted);font-size:12.5px}
+  .chunk .loc{color:var(--blue);font-weight:500;font-size:11.5px;display:block;margin-bottom:3px}
+  .answer{margin-top:10px;display:none}
+  .fld.miss .answer{display:block}
+  .answer-row{display:flex;gap:8px;margin-top:6px}
+  .answer-row input{flex:1}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--text);
+    color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.25s}
+  .toast.show{opacity:1}
+  .footer-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .empty{color:var(--faint);font-size:13px;padding:24px 0;text-align:center}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>文件处理 Agent</h1>
+    <div class="sub">上传模板与参考资料 → 自动识别待填字段 → 逐项给出依据或明确告知缺少什么。凡无依据的字段，一律不猜。</div>
+    <div class="chip" id="modelChip"><span class="dot"></span><span id="modelText">检测模型状态…</span></div>
+  </header>
+
+  <div class="card" id="uploadCard">
+    <div class="row">
+      <div class="col">
+        <label class="field">模板文件（.docx）</label>
+        <div class="drop" id="tplDrop" onclick="document.getElementById('tplInput').click()">
+          <div class="name" id="tplName">点击选择模板</div>
+          <div class="hint">优先按 {占位符} 定位；没有占位符时自动回落到结构推断</div>
+        </div>
+        <input type="file" id="tplInput" accept=".docx">
+      </div>
+      <div class="col">
+        <label class="field">参考资料（可多选）</label>
+        <div class="drop" id="fileDrop" onclick="document.getElementById('fileInput').click()">
+          <div class="name" id="fileName">点击选择参考文件</div>
+          <div class="hint">docx / pdf / xlsx / pptx / md / txt，均会保留原文定位</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".docx,.pdf,.xlsx,.xlsm,.pptx,.md,.txt">
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <label class="field">需求说明（可选）</label>
+      <textarea id="question" rows="2" placeholder="例如：按接口协议填写本项目的网络安全计划，人员从成员清单中取"></textarea>
+    </div>
+    <div style="margin-top:16px;display:flex;justify-content:flex-end">
+      <button class="primary" id="btnAnalyze" onclick="analyze()">开始处理</button>
+    </div>
+  </div>
+
+  <div id="result"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const state={taskId:null,fields:[],evidence:{},answers:{}};
+
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2600);
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function loadModelStatus(){
+  const chip=document.getElementById('modelChip');
+  const txt=document.getElementById('modelText');
+  try{
+    const res=await fetch('/api/llm/status');
+    const d=await res.json();
+    if(d.enabled){
+      chip.classList.add('on');
+      txt.textContent='语义对齐已启用 · '+d.model;
+    }else{
+      txt.textContent='未接入模型：仅规则模式 · 配置 DEEPSEEK_API_KEY 后启用语义对齐';
+    }
+  }catch(err){txt.textContent='模型状态未知';}
+}
+loadModelStatus();
+
+document.getElementById('tplInput').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  document.getElementById('tplName').textContent=f.name;
+  document.getElementById('tplDrop').classList.add('done');
+});
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const names=[...e.target.files].map(f=>f.name);
+  const el=document.getElementById('fileName');
+  el.textContent=names.length?names.join('、'):'点击选择参考文件';
+  document.getElementById('fileDrop').classList.toggle('done',names.length>0);
+});
+
+async function analyze(){
+  const tpl=document.getElementById('tplInput').files[0];
+  if(!tpl){toast('请先选择模板文件');return;}
+  const files=[...document.getElementById('fileInput').files];
+  const fd=new FormData();
+  fd.append('template',tpl);
+  files.forEach(f=>fd.append('files',f));
+  fd.append('question',document.getElementById('question').value);
+
+  const btn=document.getElementById('btnAnalyze');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>处理中';
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',body:fd});
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    state.taskId=data.task_id;state.answers={};
+    render(data);
+    toast('处理完成，共识别 '+data.stats.total+' 个字段');
+  }catch(err){toast('处理失败：'+err.message);}
+  finally{btn.disabled=false;btn.textContent='开始处理';}
+}
+
+function render(data){
+  state.fields=data.fields;state.evidence=data.evidence||{};
+  const s=data.stats;
+  const order={missing:0,pending_confirm:1,filled:2};
+  const sorted=[...data.fields].sort((a,b)=>order[a.status]-order[b.status]);
+
+  let html='<div class="card"><div class="stats">'
+    +stat('ok',s.filled,'已填充')
+    +stat('wait',s.pending_confirm,'待确认依据')
+    +stat('miss',s.missing,'需补充')
+    +stat('',s.total,'字段总数')
+    +'</div>';
+
+  html+='<div class="meta" style="margin-bottom:4px">模板：'+esc(data.template_name)
+    +'　·　模式 '+(data.template_mode==='placeholder'?'占位符':'结构推断')
+    +'　·　模板指纹 '+esc(data.template_fingerprint||'-')
+    +'　·　参考资料 '+esc((data.ref_files||[]).join('、')||'无')
+    +'　·　语料 '+esc(data.chunk_count||0)+' 块</div>';
+  if(data.skipped&&data.skipped.length){
+    html+='<div class="meta" style="color:var(--red)">未能解析：'+esc(data.skipped.join('；'))+'</div>';
+  }
+  if(data.expansion&&data.expansion.length){
+    var exp=data.expansion.map(function(e){
+      var delta=e.target_rows-e.template_rows;
+      return esc(e.collection)+' '+e.template_rows+' 行 → '+e.target_rows+' 行'
+        +(delta>0?'（扩 '+delta+' 行）':delta<0?'（缩 '+(-delta)+' 行）':'');
+    }).join('；');
+    html+='<div class="meta">已按数据条数调整表格：'+exp+'</div>';
+  }
+  if(data.llm&&data.llm.enabled){
+    var l=data.llm;
+    var bits=['语义对齐 '+esc(l.accepted)+' 项'];
+    if(l.rejected){bits.push('拒绝 '+esc(l.rejected)+' 项无出处取值');}
+    if(l.cached){bits.push('缓存命中 '+esc(l.cached)+' 项');}
+    if(l.tokens){bits.push(esc(l.tokens)+' tokens');}
+    var cols=Object.keys(l.column_map||{});
+    if(cols.length){
+      bits.push('列映射 '+cols.map(function(k){return esc(k)+'→'+esc(l.column_map[k]);}).join('、'));
+    }
+    html+='<div class="meta">模型：'+esc(l.model)+'　·　'+bits.join('　·　')+'</div>';
+  }else if(data.llm&&data.llm.note){
+    html+='<div class="meta">'+esc(data.llm.note)+'</div>';
+  }
+
+  html+='<div class="group-title">需补充（'+s.missing+'）</div>';
+  sorted.filter(f=>f.status==='missing').forEach(f=>{html+=fieldHtml(f);});
+  html+='<div class="group-title">待确认依据（'+s.pending_confirm+'）</div>';
+  sorted.filter(f=>f.status==='pending_confirm').forEach(f=>{html+=fieldHtml(f);});
+  html+='<div class="group-title">已自动生成（'+s.filled+'）</div>';
+  sorted.filter(f=>f.status==='filled').forEach(f=>{html+=fieldHtml(f);});
+
+  html+='<div class="footer-bar" style="margin-top:20px">'
+    +'<div class="hint">回答下方任一缺口后点击「应用补充」，系统会基于新信息重新判定，已填字段不会丢失。</div>'
+    +'<div><button class="ghost" onclick="applyAnswers()">应用补充</button> '
+    +'<button class="primary" onclick="exportDoc()">导出 Word</button></div></div>';
+  html+='</div>';
+  document.getElementById('result').innerHTML=html;
+}
+
+function stat(cls,num,label){
+  return '<div class="stat '+cls+'"><b>'+num+'</b><span>'+label+'</span></div>';
+}
+
+function fieldHtml(f){
+  const badge={filled:['b-filled','已填'],pending_confirm:['b-wait','待确认'],missing:['b-miss','需补充']}[f.status];
+  let h='<div class="fld '+(f.status==='missing'?'miss':'')+'">'
+    +'<div class="fld-head">'
+    +'<div class="fld-label">'+esc(f.label)+'</div>'
+    +'<span class="badge '+badge[0]+'">'+badge[1]+'</span></div>';
+
+  if(f.basis){h+='<div class="basis">'+esc(f.basis)+'</div>';}
+  if(f.section||f.caption){
+    h+='<div class="meta">位置：'+esc(f.section||'')+(f.caption?' › '+esc(f.caption):'')+'</div>';
+  }
+  if(f.value){h+='<div class="meta" style="color:var(--text)">取值：'+esc(f.value)+'</div>';}
+
+  const ev=state.evidence[f.field_id]||[];
+  if(ev.length&&f.status!=='missing'){
+    h+='<details class="evidence"><summary>查看 '+ev.length+' 处原文依据</summary>';
+    ev.forEach(c=>{
+      h+='<div class="chunk"><span class="loc">'+esc(c.doc_name)+' · '+esc(c.locator)+'</span>'+esc(c.text)+'</div>';
+    });
+    h+='</details>';
+  }
+  if(f.status==='missing'){
+    h+='<div class="answer"><div class="hint">'+esc(f.question)+'</div>'
+      +'<div class="answer-row"><input type="text" id="ans-'+f.field_id+'" placeholder="在此填写，或留空表示稍后补充">'
+      +'<button class="ghost" onclick="saveAnswer(\''+f.field_id+'\')">填入</button></div></div>';
+  }
+  return h+'</div>';
+}
+
+function saveAnswer(id){
+  const el=document.getElementById('ans-'+id);
+  const v=(el.value||'').trim();
+  if(!v){delete state.answers[id];toast('已清空该项');return;}
+  state.answers[id]=v;toast('已记录，点击「应用补充」重新判定');
+}
+
+async function applyAnswers(){
+  if(!state.taskId){toast('请先处理文档');return;}
+  const fd=new FormData();
+  fd.append('task_id',state.taskId);
+  fd.append('answers',JSON.stringify(state.answers));
+  try{
+    const res=await fetch('/api/answers',{method:'POST',body:fd});
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    render(data);
+    toast(state.answers&&Object.keys(state.answers).length?'已应用补充并重新判定':'当前无补充内容');
+  }catch(err){toast('失败：'+err.message);}
+}
+
+async function exportDoc(){
+  if(!state.taskId){toast('请先处理文档');return;}
+  const fd=new FormData();fd.append('task_id',state.taskId);
+  try{
+    const res=await fetch('/api/export',{method:'POST',body:fd});
+    if(!res.ok) throw new Error(await res.text());
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='已填充文档.docx';a.click();
+    URL.revokeObjectURL(url);
+    toast('已导出，文末附依据索引与待补充清单');
+  }catch(err){toast('导出失败：'+err.message);}
+}
+</script>
+</body>
+</html>
